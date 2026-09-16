@@ -33,7 +33,7 @@ function App() {
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif', maxWidth: '600px', margin: '0 auto' }}>
-      <h1>Gestionnaire d'éléments</h1>
+      <h1 style={{color:'red'}}>Gestionnaire d'éléments</h1>
       <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '2rem' }}>
         <input 
           type="text"
@@ -42,7 +42,7 @@ function App() {
           placeholder="Entrer un nom..." 
           style={{ flex: 1, padding: '8px 12px', fontSize: '16px' }}
         />
-        <button type="submit" style={{ padding: '8px 16px', fontSize: '16px', cursor: 'pointer' }}>
+        <button type="submit" style={{ padding: '8px 16px', fontSize: '16px', cursor: 'pointer' , color:'red' }}>
           Ajouter
         </button>
       </form>
