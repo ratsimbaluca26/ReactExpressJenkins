@@ -2,12 +2,14 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout') {
-            steps {
-                cleanWs()
-                checkout scm
-            }
-        }
+       stage('Checkout') {
+    steps {
+        cleanWs()
+        git credentialsId: 'github-ssh', 
+            url: 'git@github.com:ratsimbaluca26/ReactExpressJenkins.git', 
+            branch: 'main'
+    }
+}
 
         stage('Build & Test Backend') {
             steps {
@@ -36,16 +38,16 @@ pipeline {
 
         stage('Verify Deployment') {
             steps {
-                // Attente du démarrage de PostgreSQL et des services
+                
                 sh 'sleep 10'
                 
-                // 1. Vérification de la santé de l'API Express
+                
                 sh 'docker exec express-api wget --spider -q http://localhost:5000/health || exit 1'
                 
-                // 2. Vérification du Frontend Nginx
+                
                 sh 'docker exec react-app wget --spider -q http://localhost:80 || exit 1'
                 
-                // 3. Affichage de l'état des conteneurs
+                
                 sh 'docker-compose ps'
             }
         }
