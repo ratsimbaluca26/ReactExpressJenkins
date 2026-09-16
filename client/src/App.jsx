@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { itemService } from './services/itemService';
+import { itemService } from './service/itemService';
 
 function App() {
   const [items, setItems] = useState([]);
