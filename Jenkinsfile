@@ -8,6 +8,21 @@ pipeline {
     }
 
     parameters {
+        string(
+            name: 'GIT_URL',
+            defaultValue: 'git@github.com:ratsimbaluca26/ReactExpressJenkins.git',
+            description: 'URL SSH du dépôt Git'
+        )
+        string(
+            name: 'GIT_BRANCH',
+            defaultValue: 'main',
+            description: 'Branche à construire'
+        )
+        string(
+            name: 'GIT_CREDENTIALS_ID',
+            defaultValue: 'github-ssh',
+            description: 'Identifiant Jenkins des credentials SSH GitHub'
+        )
         booleanParam(
             name: 'DEPLOY',
             defaultValue: true,
@@ -25,7 +40,9 @@ pipeline {
         stage('Checkout') {
             steps {
                 deleteDir()
-                checkout scm
+                git branch: params.GIT_BRANCH,
+                    credentialsId: params.GIT_CREDENTIALS_ID,
+                    url: params.GIT_URL
             }
         }
 
