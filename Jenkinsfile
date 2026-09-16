@@ -3,13 +3,11 @@ pipeline {
 
     stages {
         stage('Checkout') {
-            steps {
-                cleanWs()
-                git credentialsId: 'ssh_hu', 
-                    url: 'git@github.com:ratsimbaluca26/ReactExpressJenkins.git', 
-                    branch: 'main'
-            }
-        }
+    steps {
+        cleanWs()
+        git url: 'https://github.com/ratsimbaluca26/ReactExpressJenkins.git', branch: 'main'
+    }
+}
 
         stage('Deploy Stack') {
             steps {
