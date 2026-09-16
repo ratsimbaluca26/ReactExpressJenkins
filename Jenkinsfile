@@ -1,65 +1,190 @@
 pipeline {
     agent any
 
-    stages {
-       stage('Checkout') {
-    steps {
-        cleanWs()
-        git credentialsId: 'github-ssh', 
-            url: 'git@github.com:ratsimbaluca26/ReactExpressJenkins.git', 
-            branch: 'main'
+    options {
+        timestamps()
+        timeout(time: 20, unit: 'MINUTES')
+        disableConcurrentBuilds()
     }
-}
 
+    parameters {
+        booleanParam(
+            name: 'DEPLOY',
+            defaultValue: true,
+            description: 'Construire et démarrer la stack Docker Compose après les validations'
+        )
+    }
 
-        stage('Build & Test Backend') {
+    environment {
+        COMPOSE_PROJECT_NAME = "jenkins-demo-${env.BUILD_NUMBER}"
+        BACKEND_URL = 'http://localhost:5000'
+        FRONTEND_URL = 'http://localhost:8083'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                deleteDir()
+                checkout scm
+            }
+        }
+
+        stage('Validate tools') {
+            steps {
+                sh '''#!/bin/sh
+                    set -eu
+                    command -v node
+                    command -v npm
+                    command -v docker
+                    if docker compose version >/dev/null 2>&1; then
+                        echo "Docker Compose v2 détecté"
+                    elif command -v docker-compose >/dev/null 2>&1; then
+                        echo "Docker Compose v1 détecté"
+                    else
+                        echo "Docker Compose est requis sur l'agent Jenkins" >&2
+                        exit 1
+                    fi
+                    node --version
+                    npm --version
+                    docker --version
+                '''
+            }
+        }
+
+        stage('Install and test backend') {
             steps {
                 dir('server') {
-                    sh 'npm install'
+                    sh '''#!/bin/sh
+                        set -eu
+                        if [ -f package-lock.json ]; then
+                            npm ci
+                        else
+                            npm install
+                        fi
+                        npm test --if-present
+                    '''
                 }
             }
         }
 
-        stage('Build & Test Frontend') {
+        stage('Build and test frontend') {
             steps {
                 dir('client') {
-                    sh 'npm install'
-                    sh 'npm run build'
+                    sh '''#!/bin/sh
+                        set -eu
+                        if [ -f package-lock.json ]; then
+                            npm ci
+                        else
+                            npm install
+                        fi
+                        npm test --if-present
+                        npm run build
+                    '''
                 }
             }
         }
 
-        stage('Deploy Stack') {
+        stage('Validate Compose configuration') {
             steps {
-                // Arrêt des anciens conteneurs et reconstruction de la stack
-                sh 'docker-compose down'
-                sh 'docker-compose up -d --build'
+                sh '''#!/bin/sh
+                    set -eu
+                    if docker compose version >/dev/null 2>&1; then
+                        docker compose config -q
+                    else
+                        docker-compose config -q
+                    fi
+                '''
             }
         }
 
-        stage('Verify Deployment') {
+        stage('Deploy stack') {
+            when {
+                expression { params.DEPLOY }
+            }
             steps {
-                
-                sh 'sleep 10'
-                
-                
-                sh 'docker exec express-api wget --spider -q http://localhost:5000/health || exit 1'
-                
-                
-                sh 'docker exec react-app wget --spider -q http://localhost:80 || exit 1'
-                
-                
-                sh 'docker-compose ps'
+                sh '''#!/bin/sh
+                    set -eu
+                    if docker compose version >/dev/null 2>&1; then
+                        docker compose down --remove-orphans || true
+                        docker compose up -d --build
+                    else
+                        docker-compose down --remove-orphans || true
+                        docker-compose up -d --build
+                    fi
+                '''
+            }
+        }
+
+        stage('Verify deployment') {
+            when {
+                expression { params.DEPLOY }
+            }
+            steps {
+                sh '''#!/bin/sh
+                    set -eu
+                    ready=0
+                    i=0
+                    while [ "$i" -lt 30 ]; do
+                        if command -v curl >/dev/null 2>&1; then
+                            backend_ok=$(curl -fsS "$BACKEND_URL/health" 2>/dev/null || true)
+                            frontend_ok=$(curl -fsS "$FRONTEND_URL" 2>/dev/null || true)
+                        else
+                            backend_ok=$(wget -qO- "$BACKEND_URL/health" 2>/dev/null || true)
+                            frontend_ok=$(wget -qO- "$FRONTEND_URL" 2>/dev/null || true)
+                        fi
+
+                        if [ -n "$backend_ok" ] && [ -n "$frontend_ok" ]; then
+                            ready=1
+                            break
+                        fi
+
+                        i=$((i + 1))
+                        sleep 2
+                    done
+
+                    if [ "$ready" -ne 1 ]; then
+                        echo "La vérification de la stack a échoué" >&2
+                        if docker compose version >/dev/null 2>&1; then
+                            docker compose ps
+                            docker compose logs --tail=100
+                        else
+                            docker-compose ps
+                            docker-compose logs --tail=100
+                        fi
+                        exit 1
+                    fi
+
+                    echo "Backend: $backend_ok"
+                    echo "Frontend accessible sur $FRONTEND_URL"
+                    if docker compose version >/dev/null 2>&1; then
+                        docker compose ps
+                    else
+                        docker-compose ps
+                    fi
+                '''
             }
         }
     }
 
     post {
+        always {
+            script {
+                if (params.DEPLOY) {
+                    sh '''#!/bin/sh
+                        if docker compose version >/dev/null 2>&1; then
+                            docker compose ps || true
+                        else
+                            docker-compose ps || true
+                        fi
+                    '''
+                }
+            }
+        }
         success {
-            echo ' Application React + Express + PostgreSQL déployée avec succès sur le port 8083 !'
+            echo 'Pipeline Jenkins terminé avec succès.'
         }
         failure {
-            echo ' Échec lors du déploiement de la pile.'
+            echo 'Le pipeline Jenkins a échoué. Consultez les logs de l’étape en erreur.'
         }
     }
 }
