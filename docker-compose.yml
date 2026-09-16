@@ -1,5 +1,4 @@
-version: '3.8'
-
+# Note: L'attribut 'version' a été retiré car obsolète dans les versions récentes de Docker Compose
 services:
   # Base de données PostgreSQL
   db:
@@ -17,7 +16,9 @@ services:
 
   # Backend Express.js
   backend:
-    build: ./server
+    build:
+      context: ./server
+      network: host
     container_name: express-api
     restart: always
     ports:
@@ -30,7 +31,9 @@ services:
 
   # Frontend React (Nginx)
   frontend:
-    build: ./client
+    build:
+      context: ./client
+      network: host
     container_name: react-app
     restart: always
     ports:
