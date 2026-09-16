@@ -5,7 +5,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 cleanWs()
-                git credentialsId: 'ssh-hu', 
+                git credentialsId: 'ssh_hu', 
                     url: 'git@github.com:ratsimbaluca26/ReactExpressJenkins.git', 
                     branch: 'main'
             }
